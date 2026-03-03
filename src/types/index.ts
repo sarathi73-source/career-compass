@@ -7,6 +7,7 @@ export interface Profile {
   phone?: string
   role: 'student' | 'parent' | 'teacher'
   language_preference?: string
+  stream_preference?: 'Science' | 'Commerce' | 'Humanities' | 'not_sure' | null
   created_at?: string
   updated_at?: string
 }

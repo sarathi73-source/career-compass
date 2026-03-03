@@ -304,6 +304,37 @@ export default function Results() {
           <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{reasoning}</p>
         </div>
 
+        {/* Stream Preference Alignment — only shown if student selected a preference */}
+        {profile?.stream_preference && profile.stream_preference !== 'not_sure' && (
+          <div className={`rounded-2xl border p-6 mb-6 ${
+            profile.stream_preference === stream
+              ? 'bg-green-50 border-green-200'
+              : 'bg-amber-50 border-amber-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0">
+                {profile.stream_preference === stream ? '✅' : '🔍'}
+              </span>
+              <div>
+                <h2 className={`text-base font-bold mb-1 ${
+                  profile.stream_preference === stream ? 'text-green-800' : 'text-amber-800'
+                }`}>
+                  {profile.stream_preference === stream
+                    ? 'Great news — your instincts were right!'
+                    : 'Interesting — your results suggest a different path!'}
+                </h2>
+                <p className={`text-sm leading-relaxed ${
+                  profile.stream_preference === stream ? 'text-green-700' : 'text-amber-700'
+                }`}>
+                  {profile.stream_preference === stream
+                    ? `You had already thought about ${stream} — and your assessments confirm it's the best fit for you. That's a strong sign of self-awareness!`
+                    : `You were leaning towards ${profile.stream_preference}, but your aptitude, interests, and personality point strongly towards ${stream}. Explore both before deciding — sometimes the data reveals strengths we don't see in ourselves.`}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AI Narrative */}
         {(result.ai_narrative || generatingNarrative) && (
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-2xl border border-blue-100 p-6 mb-6">

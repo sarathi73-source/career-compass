@@ -4,6 +4,7 @@ import { CheckCircle, Clock, Lock, Play, ArrowRight, Star, BookOpen, Brain, Spar
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/layout/Layout'
+import StreamPreferenceCard from '@/components/dashboard/StreamPreferenceCard'
 import { Assessment, Result } from '@/types'
 
 interface AssessmentStatus {
@@ -148,6 +149,9 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Stream Preference Card — only shown until student picks an option */}
+        {!profile?.stream_preference && <StreamPreferenceCard />}
 
         {/* Progress Bar */}
         <div className="bg-white rounded-xl p-5 shadow-sm mb-6 border border-gray-100">
