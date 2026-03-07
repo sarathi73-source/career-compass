@@ -62,8 +62,7 @@ export default function ProfileEdit() {
       // Redirect to the dashboard that matches the user's role
       const role = profile?.role || (user?.user_metadata?.role as string | undefined)
       navigate(
-        role === 'counsellor' ? '/counsellor/dashboard' :
-        role === 'parent'     ? '/parent/dashboard' :
+        role === 'parent' ? '/parent/dashboard' :
         '/dashboard'
       )
     } catch {

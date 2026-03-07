@@ -14,8 +14,7 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
 
   if (user) {
     const redirectTo =
-      profile?.role === 'parent'     ? '/parent/dashboard' :
-      profile?.role === 'counsellor' ? '/counsellor/dashboard' :
+      profile?.role === 'parent' ? '/parent/dashboard' :
       '/dashboard'
     return <Navigate to={redirectTo} replace />
   }
