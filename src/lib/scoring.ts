@@ -1,4 +1,4 @@
-import { aptitudeQuestions, interestQuestions, personalityQuestions } from './questions'
+import { aptitudeQuestions, interestQuestions, personalityQuestions, Question } from './questions'
 import { StreamScores, CareerItem } from '@/types'
 
 interface RawResponses {
@@ -6,11 +6,11 @@ interface RawResponses {
 }
 
 // ─── Aptitude Scoring ──────────────────────────────────────────────────────
-function scoreAptitude(responses: RawResponses) {
+function scoreAptitude(responses: RawResponses, questions: Question[] = aptitudeQuestions) {
   const categories = { numerical: 0, verbal: 0, logical: 0, spatial: 0 }
   const maxPerCat: Record<string, number> = {}
 
-  aptitudeQuestions.forEach(q => {
+  questions.forEach(q => {
     const cat = q.category as keyof typeof categories
     if (!maxPerCat[cat]) maxPerCat[cat] = 0
     maxPerCat[cat]++
@@ -34,11 +34,11 @@ function scoreAptitude(responses: RawResponses) {
 }
 
 // ─── Interest Scoring ──────────────────────────────────────────────────────
-function scoreInterest(responses: RawResponses) {
+function scoreInterest(responses: RawResponses, questions: Question[] = interestQuestions) {
   let stem = 0, business = 0, artsSocial = 0
   let maxStem = 0, maxBusiness = 0, maxArtsSocial = 0
 
-  interestQuestions.forEach(q => {
+  questions.forEach(q => {
     const val = parseInt(responses[q.id] || '0')
     const maxVal = 4
     if (q.category === 'stem') { stem += val; maxStem += maxVal }
@@ -54,11 +54,11 @@ function scoreInterest(responses: RawResponses) {
 }
 
 // ─── Personality Scoring ───────────────────────────────────────────────────
-function scorePersonality(responses: RawResponses) {
+function scorePersonality(responses: RawResponses, questions: Question[] = personalityQuestions) {
   let science = 0, commerce = 0, humanities = 0
-  const total = personalityQuestions.length
+  const total = questions.length
 
-  personalityQuestions.forEach(q => {
+  questions.forEach(q => {
     const selectedValue = responses[q.id]
     const selectedOption = q.options.find(o => o.value === selectedValue)
     if (selectedOption?.stream === 'science') science++
@@ -77,11 +77,14 @@ function scorePersonality(responses: RawResponses) {
 export function calculateScores(
   aptitudeResponses: RawResponses,
   interestResponses: RawResponses,
-  personalityResponses: RawResponses
+  personalityResponses: RawResponses,
+  aptitudeQs: Question[] = aptitudeQuestions,
+  interestQs: Question[] = interestQuestions,
+  personalityQs: Question[] = personalityQuestions
 ): StreamScores {
-  const apt = scoreAptitude(aptitudeResponses)
-  const int = scoreInterest(interestResponses)
-  const per = scorePersonality(personalityResponses)
+  const apt = scoreAptitude(aptitudeResponses, aptitudeQs)
+  const int = scoreInterest(interestResponses, interestQs)
+  const per = scorePersonality(personalityResponses, personalityQs)
 
   // Science = (Numerical + Spatial) * 40 + STEM * 40 + PersonalityScience * 20
   const science = Math.round(

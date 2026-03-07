@@ -37,6 +37,8 @@ export interface Result {
   science_score: number
   commerce_score: number
   humanities_score: number
+  attempt_number?: number
+  reasoning?: string
   ai_narrative?: string
   top_careers?: CareerItem[]
   report_url?: string

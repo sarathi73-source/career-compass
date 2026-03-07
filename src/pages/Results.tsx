@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { Download, Share2, ArrowRight, Sparkles, CheckCircle, Lock } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Download, Share2, ArrowRight, Sparkles, CheckCircle, Lock, RotateCcw, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/shared/Toast'
 import Layout from '@/components/layout/Layout'
 import { calculateScores, getStreamRecommendation, topCareers, buildNarrativePrompt } from '@/lib/scoring'
 import { generatePDF } from '@/lib/generatePDF'
+import { getFullQuestionPool } from '@/lib/questions'
 import { StreamScores, Result } from '@/types'
 
 const STREAM_COLORS = {
@@ -20,13 +21,17 @@ const STREAM_EMOJI = { Science: '🔬', Commerce: '📊', Humanities: '📚' }
 export default function Results() {
   const { user, profile } = useAuth()
   const { showToast } = useToast()
+  const navigate = useNavigate()
 
   const [result, setResult] = useState<Result | null>(null)
+  const [previousResult, setPreviousResult] = useState<Result | null>(null)
   const [scores, setScores] = useState<StreamScores | null>(null)
   const [loading, setLoading] = useState(true)
   const [generatingNarrative, setGeneratingNarrative] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [notReady, setNotReady] = useState(false)
+  const [showRetakeConfirm, setShowRetakeConfirm] = useState(false)
+  const [retaking, setRetaking] = useState(false)
 
   useEffect(() => {
     if (user) loadResults()
@@ -125,11 +130,10 @@ export default function Results() {
       }
 
       // Find the best (most responses) assessment for each type
-      // Pass the minimum expected responses for each type so we stop early when found
       const [aptBest, intBest, perBest] = await Promise.all([
-        findBestAssessmentId(aptitudeList.map(a => a.id), 15),   // 15 aptitude questions
-        findBestAssessmentId(interestList.map(a => a.id), 15),   // 15 interest questions
-        findBestAssessmentId(personalityList.map(a => a.id), 5), // 5 personality questions
+        findBestAssessmentId(aptitudeList.map(a => a.id), 20),   // 20 aptitude questions
+        findBestAssessmentId(interestList.map(a => a.id), 24),   // 24 interest questions
+        findBestAssessmentId(personalityList.map(a => a.id), 12), // 12 personality questions
       ])
 
       const toMap = (rows: { question_id: string; answer_value: string }[]) =>
@@ -148,13 +152,38 @@ export default function Results() {
       console.log('intMap:', intMap)
       console.log('perMap:', perMap)
 
-      const calculatedScores = calculateScores(aptMap, intMap, perMap)
+      // Detect which grade group was used for this assessment from the question ID prefixes.
+      // This is more reliable than profile.grade (which may have changed since the assessment).
+      const gradeForScoring =
+        Object.keys(aptMap).some(k => k.startsWith('apt_d_')) ? '9' :
+        Object.keys(aptMap).some(k => k.startsWith('apt_c_')) ? '11' : '10'
+      console.log('gradeForScoring detected:', gradeForScoring)
+
+      const calculatedScores = calculateScores(
+        aptMap, intMap, perMap,
+        getFullQuestionPool(gradeForScoring, 'aptitude').filter(q => aptMap[q.id] !== undefined),
+        getFullQuestionPool(gradeForScoring, 'interest').filter(q => intMap[q.id] !== undefined),
+        getFullQuestionPool(gradeForScoring, 'personality').filter(q => perMap[q.id] !== undefined),
+      )
       console.log('calculatedScores:', calculatedScores)
-      const { stream } = getStreamRecommendation(calculatedScores)
+      const { stream, reasoning } = getStreamRecommendation(calculatedScores)
 
-      // Delete any existing stale result and always save fresh scores
-      await supabase.from('results').delete().eq('student_id', user!.id)
+      // Fetch existing results to determine attempt number and previous scores for delta display
+      const { data: existingResults } = await supabase
+        .from('results')
+        .select('attempt_number, science_score, commerce_score, humanities_score, recommended_stream')
+        .eq('student_id', user!.id)
+        .order('attempt_number', { ascending: false })
+        .limit(1)
 
+      const previousResult = existingResults?.[0] || null
+      const nextAttemptNumber = previousResult
+        ? ((previousResult.attempt_number as number) || 1) + 1
+        : 1
+
+      if (previousResult) setPreviousResult(previousResult as Result)
+
+      // Insert NEW result row (keep history — never delete old results)
       const { data: savedResult, error } = await supabase.from('results').insert({
         student_id: user!.id,
         stream: stream,
@@ -162,6 +191,8 @@ export default function Results() {
         science_score: calculatedScores.science,
         commerce_score: calculatedScores.commerce,
         humanities_score: calculatedScores.humanities,
+        attempt_number: nextAttemptNumber,
+        reasoning: reasoning,
       }).select().single()
 
       if (error) throw error
@@ -177,6 +208,44 @@ export default function Results() {
       setLoading(false)
     }
   }, [user, generateAINarrative, showToast])
+
+  // ─── Retake: clear all assessment data and go back to Dashboard ─────────
+  const handleRetake = async () => {
+    if (!user) return
+    setRetaking(true)
+    try {
+      // 1. Get all assessment IDs for this user
+      const { data: allAssessments } = await supabase
+        .from('assessments')
+        .select('id')
+        .eq('student_id', user.id)
+
+      const ids = (allAssessments || []).map((a: { id: string }) => a.id)
+
+      // 2. Delete all assessment responses
+      if (ids.length > 0) {
+        await supabase
+          .from('assessment_responses')
+          .delete()
+          .in('assessment_id', ids)
+      }
+
+      // 3. Delete all assessments
+      await supabase.from('assessments').delete().eq('student_id', user.id)
+
+      // 4. Delete all results
+      await supabase.from('results').delete().eq('student_id', user.id)
+
+      showToast('Assessments cleared — start fresh whenever you\'re ready! 🔄', 'success')
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('Retake error:', err)
+      showToast('Something went wrong. Please try again.', 'error')
+    } finally {
+      setRetaking(false)
+      setShowRetakeConfirm(false)
+    }
+  }
 
   const handleDownloadPDF = async () => {
     if (!result || !scores || !profile) return
@@ -242,14 +311,58 @@ export default function Results() {
   const careers = (result.top_careers as { title: string; description: string }[]) || topCareers[stream]
 
   const streamBars = [
-    { label: 'Science', score: scores.science, color: 'bg-blue-500' },
-    { label: 'Commerce', score: scores.commerce, color: 'bg-green-500' },
-    { label: 'Humanities', score: scores.humanities, color: 'bg-indigo-500' },
+    { label: 'Science', score: scores.science, color: 'bg-blue-500', prevScore: previousResult?.science_score },
+    { label: 'Commerce', score: scores.commerce, color: 'bg-green-500', prevScore: previousResult?.commerce_score },
+    { label: 'Humanities', score: scores.humanities, color: 'bg-indigo-500', prevScore: previousResult?.humanities_score },
   ]
 
   return (
     <Layout>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+        {/* ─── Retake Confirmation Modal ─────────────────────────────────────── */}
+        {showRetakeConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                  <AlertTriangle size={24} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">Retake All Assessments?</h3>
+                  <p className="text-sm text-red-500 font-medium">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed mb-6">
+                This will clear your current assessment answers so you can retake all 3 assessments.
+                Your current result (Attempt #{result.attempt_number ?? 1}) will be saved in history and the new
+                attempt will be compared against it when complete.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRetakeConfirm(false)}
+                  disabled={retaking}
+                  className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRetake}
+                  disabled={retaking}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 transition-colors disabled:opacity-60"
+                >
+                  {retaking ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <RotateCcw size={16} />
+                  )}
+                  {retaking ? 'Clearing...' : 'Yes, Retake'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stream Recommendation Hero */}
         <div className={`${colors.bg} rounded-2xl p-8 text-white text-center mb-8 relative overflow-hidden`}>
           <div className="absolute inset-0 opacity-10">
@@ -260,10 +373,23 @@ export default function Results() {
             <div className="text-5xl mb-3">{STREAM_EMOJI[stream]}</div>
             <p className="text-white/80 text-sm font-medium mb-1 uppercase tracking-wide">Your Recommended Stream</p>
             <h1 className="text-4xl sm:text-5xl font-bold mb-3">{stream}</h1>
-            <div className="flex items-center justify-center gap-2 text-white/90">
+            <div className="flex items-center justify-center gap-2 text-white/90 mb-3">
               <CheckCircle size={18} />
               <p className="text-sm font-medium">Based on your aptitude, interests & personality</p>
             </div>
+            {(result.attempt_number ?? 1) > 1 && (
+              <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                <RotateCcw size={13} className="text-white/80" />
+                <span className="text-white text-xs font-semibold">
+                  Attempt #{result.attempt_number}
+                </span>
+                {previousResult && previousResult.recommended_stream !== stream && (
+                  <span className="text-white/80 text-xs ml-1">
+                    · Stream changed from {previousResult.recommended_stream}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -274,27 +400,37 @@ export default function Results() {
             Your Stream Scores
           </h2>
           <div className="space-y-4">
-            {streamBars.map(bar => (
-              <div key={bar.label}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-sm font-semibold ${bar.label === stream ? 'text-gray-900' : 'text-gray-600'}`}>
-                    {bar.label}
-                    {bar.label === stream && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                        Recommended
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-sm font-bold text-gray-700">{bar.score}/100</span>
+            {streamBars.map(bar => {
+              const delta = bar.prevScore !== undefined ? bar.score - bar.prevScore : null
+              return (
+                <div key={bar.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`text-sm font-semibold ${bar.label === stream ? 'text-gray-900' : 'text-gray-600'}`}>
+                      {bar.label}
+                      {bar.label === stream && (
+                        <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          Recommended
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {delta !== null && delta !== 0 && (
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${delta > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                          {delta > 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
+                        </span>
+                      )}
+                      <span className="text-sm font-bold text-gray-700">{bar.score}/100</span>
+                    </div>
+                  </div>
+                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${bar.color} rounded-full transition-all duration-1000`}
+                      style={{ width: `${(bar.score / 100) * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${bar.color} rounded-full transition-all duration-1000`}
-                    style={{ width: `${(bar.score / 100) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
@@ -400,6 +536,21 @@ export default function Results() {
         <p className="text-center text-xs text-gray-400 mt-4">
           Share the link with your parents so they can view your full report without signing in.
         </p>
+
+        {/* ─── Retake Section ────────────────────────────────────────────────── */}
+        <div className="mt-10 pt-6 border-t border-gray-100 text-center">
+          <p className="text-sm text-gray-500 mb-4">
+            Want to try again or feel the results don't reflect you?
+          </p>
+          <button
+            onClick={() => setShowRetakeConfirm(true)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-all duration-200 group"
+          >
+            <RotateCcw size={16} className="group-hover:rotate-180 transition-transform duration-300" />
+            Retake All Assessments
+          </button>
+        </div>
+
       </div>
     </Layout>
   )

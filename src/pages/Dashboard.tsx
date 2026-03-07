@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle, Clock, Lock, Play, ArrowRight, Star, BookOpen, Brain, Sparkles } from 'lucide-react'
+import { CheckCircle, Clock, Lock, Play, ArrowRight, Star, BookOpen, Brain, Sparkles, RotateCcw } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/layout/Layout'
@@ -69,7 +69,7 @@ export default function Dashboard() {
       icon: <Brain size={24} className="text-blue-600" />,
       iconBg: 'bg-blue-100',
       route: '/assessment',
-      questions: '15 questions · ~10 min',
+      questions: '20 questions · ~15 min',
     },
     {
       key: 'interest' as const,
@@ -78,7 +78,7 @@ export default function Dashboard() {
       icon: <Star size={24} className="text-amber-600" />,
       iconBg: 'bg-amber-100',
       route: '/interest-inventory',
-      questions: '15 questions · ~8 min',
+      questions: '24 questions · ~12 min',
     },
     {
       key: 'personality' as const,
@@ -87,7 +87,7 @@ export default function Dashboard() {
       icon: <Sparkles size={24} className="text-indigo-600" />,
       iconBg: 'bg-indigo-100',
       route: '/personality',
-      questions: '5 questions · ~5 min',
+      questions: '12 questions · ~8 min',
     },
   ]
 
@@ -262,12 +262,21 @@ export default function Dashboard() {
                 <span className="font-bold text-blue-600 text-lg">{result.recommended_stream} Stream</span>
                 <p className="text-xs text-gray-400 mt-0.5">Generated on {new Date(result.created_at!).toLocaleDateString('en-IN')}</p>
               </div>
-              <Link
-                to="/results"
-                className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              >
-                View <ArrowRight size={16} />
-              </Link>
+              <div className="flex flex-col items-end gap-1.5">
+                <Link
+                  to="/results"
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+                >
+                  View <ArrowRight size={16} />
+                </Link>
+                <Link
+                  to="/results"
+                  className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors group"
+                >
+                  <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
+                  Retake
+                </Link>
+              </div>
             </div>
           </div>
         )}

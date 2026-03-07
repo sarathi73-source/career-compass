@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { Result, StreamScores, Profile } from '@/types'
-import { topCareers } from './scoring'
+import { topCareers, getStreamRecommendation } from './scoring'
 
 const COLORS = {
   primary: [37, 99, 235] as [number, number, number],      // blue-600
@@ -128,16 +128,13 @@ export async function generatePDF(result: Result, scores: StreamScores, profile:
     barY += 18
   })
 
-  // Why This Stream
+  // Why This Stream — use dynamic, stream-specific reasoning from scoring engine
+  const { reasoning: reasoningText } = getStreamRecommendation(scores)
   const reasoningY = barY + 5
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(17, 24, 39)
   doc.text('Why ' + stream + '?', 15, reasoningY)
-
-  const reasoningText = `Your assessment results show a strong alignment with the ${stream} stream. ` +
-    `Your combination of aptitude scores, interest patterns, and personality traits all point toward ` +
-    `this stream as the ideal path for your academic and career journey.`
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
