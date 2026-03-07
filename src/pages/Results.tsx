@@ -18,6 +18,172 @@ const STREAM_COLORS = {
 
 const STREAM_EMOJI = { Science: '🔬', Commerce: '📊', Humanities: '📚' }
 
+// ─── Competitive Exam Roadmap (Phase E) ──────────────────────────────────────
+interface ExamEntry {
+  name: string
+  fullName: string
+  emoji: string
+  description: string
+  startPrep: string
+  level: 'National' | 'Institute' | 'Professional'
+  difficulty: 'Moderate' | 'Hard' | 'Very Hard'
+}
+
+const EXAM_ROADMAP: Record<'Science' | 'Commerce' | 'Humanities', ExamEntry[]> = {
+  Science: [
+    {
+      name: 'JEE Main',
+      fullName: 'Joint Entrance Exam – Main',
+      emoji: '⚗️',
+      description: 'Gateway to NITs, IIITs, and GFTIs. Conducted by NTA twice a year (Jan & Apr). Covers Physics, Chemistry & Maths.',
+      startPrep: 'Class 10 onwards',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'JEE Advanced',
+      fullName: 'Joint Entrance Exam – Advanced',
+      emoji: '🏆',
+      description: 'For the IITs. Qualify JEE Main first. One of India\'s toughest exams — deep concept mastery is essential.',
+      startPrep: 'Class 10 onwards',
+      level: 'National',
+      difficulty: 'Very Hard',
+    },
+    {
+      name: 'NEET-UG',
+      fullName: 'National Eligibility cum Entrance Test',
+      emoji: '🩺',
+      description: 'Mandatory for MBBS, BDS, BAMS, BUMS across India. Biology-heavy — conducted annually by NTA.',
+      startPrep: 'Class 10 onwards',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'BITSAT',
+      fullName: 'BITS Admission Test',
+      emoji: '🔭',
+      description: 'For BITS Pilani, Goa & Hyderabad campuses. Computer-based; includes an English & reasoning section.',
+      startPrep: 'Class 11',
+      level: 'Institute',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'KVPY / INSPIRE',
+      fullName: 'Kishore Vaigyanik Protsahan Yojana',
+      emoji: '🌟',
+      description: 'Fellowship for research-oriented students. Strong boost for IISc and IISER admissions. Focus on fundamentals.',
+      startPrep: 'Class 11',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+  ],
+  Commerce: [
+    {
+      name: 'CA Foundation',
+      fullName: 'Chartered Accountancy – Foundation',
+      emoji: '📈',
+      description: 'First step to becoming a CA. Conducted by ICAI twice a year. Covers Accounts, Law, Maths & Economics.',
+      startPrep: 'After Class 12',
+      level: 'Professional',
+      difficulty: 'Moderate',
+    },
+    {
+      name: 'IPMAT',
+      fullName: 'Integrated Program in Management',
+      emoji: '🏛️',
+      description: 'For IIM 5-year IPM programmes (Indore, Rohtak, Jammu, Bodhgaya). Best route to an IIM degree straight after Class 12.',
+      startPrep: 'Class 11',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'CUET UG',
+      fullName: 'Common University Entrance Test',
+      emoji: '🎓',
+      description: 'Entry to central universities — DU B.Com (H), BBA, BA Economics. Replaces board % for most top colleges.',
+      startPrep: 'Class 12',
+      level: 'National',
+      difficulty: 'Moderate',
+    },
+    {
+      name: 'CLAT',
+      fullName: 'Common Law Admission Test',
+      emoji: '⚖️',
+      description: 'For 5-year BA LLB at National Law Universities. Corporate & business law is a top career in Commerce.',
+      startPrep: 'Class 11',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'CMA Foundation',
+      fullName: 'Cost & Management Accountancy',
+      emoji: '💼',
+      description: 'By ICMAI. Focuses on cost accounting and financial management. Great for corporate finance roles.',
+      startPrep: 'After Class 12',
+      level: 'Professional',
+      difficulty: 'Moderate',
+    },
+  ],
+  Humanities: [
+    {
+      name: 'CLAT',
+      fullName: 'Common Law Admission Test',
+      emoji: '⚖️',
+      description: 'Most popular pick for Humanities students. English, GK, Legal Reasoning, Logical & Quantitative skills.',
+      startPrep: 'Class 11',
+      level: 'National',
+      difficulty: 'Hard',
+    },
+    {
+      name: 'CUET UG',
+      fullName: 'Common University Entrance Test',
+      emoji: '🎓',
+      description: 'Unlock top central university programmes — History, Political Science, Psychology, Economics, Journalism.',
+      startPrep: 'Class 12',
+      level: 'National',
+      difficulty: 'Moderate',
+    },
+    {
+      name: 'TISS BAT',
+      fullName: 'TISS Bachelor\'s Admission Test',
+      emoji: '🤝',
+      description: 'Entry to TISS BA programmes in Social Work and Development Studies. Socially meaningful careers.',
+      startPrep: 'Class 12',
+      level: 'Institute',
+      difficulty: 'Moderate',
+    },
+    {
+      name: 'IIMC / MCRC',
+      fullName: 'Mass Communication Entrance',
+      emoji: '📰',
+      description: 'For journalism & media at IIMC New Delhi or Jamia MCRC. Language skills and current affairs are key.',
+      startPrep: 'Class 12',
+      level: 'Institute',
+      difficulty: 'Moderate',
+    },
+    {
+      name: 'UPSC CSE',
+      fullName: 'Civil Services Examination',
+      emoji: '🏅',
+      description: 'For IAS / IPS / IFS — India\'s most prestigious career track. Humanities background is a natural advantage.',
+      startPrep: 'Graduation onwards',
+      level: 'National',
+      difficulty: 'Very Hard',
+    },
+  ],
+}
+
+const DIFFICULTY_STYLE = {
+  'Moderate':  'bg-emerald-100 text-emerald-700',
+  'Hard':      'bg-orange-100 text-orange-700',
+  'Very Hard': 'bg-red-100 text-red-700',
+}
+const LEVEL_STYLE = {
+  'National':     'bg-blue-100 text-blue-700',
+  'Institute':    'bg-purple-100 text-purple-700',
+  'Professional': 'bg-amber-100 text-amber-700',
+}
+
 export default function Results() {
   const { user, profile } = useAuth()
   const { showToast } = useToast()
@@ -572,6 +738,64 @@ export default function Results() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ─── Competitive Exam Roadmap (Phase E) ──────────────────────────── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <div className="flex items-start gap-3 mb-5">
+            <div className="text-3xl shrink-0">🚀</div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Competitive Exam Roadmap</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Key national exams to target for the <span className="font-semibold text-gray-700">{stream}</span> stream — plan early, start smart.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {EXAM_ROADMAP[stream].map((exam) => (
+              <div
+                key={exam.name}
+                className="rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50 hover:border-blue-100 transition-colors p-4 flex flex-col gap-2"
+              >
+                {/* Header row */}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{exam.emoji}</span>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-gray-800 text-sm leading-tight">{exam.name}</h3>
+                    <p className="text-xs text-gray-500 truncate">{exam.fullName}</p>
+                  </div>
+                </div>
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${LEVEL_STYLE[exam.level]}`}>
+                    {exam.level}
+                  </span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${DIFFICULTY_STYLE[exam.difficulty]}`}>
+                    {exam.difficulty}
+                  </span>
+                </div>
+
+                {/* Description */}
+                <p className="text-xs text-gray-600 leading-relaxed">{exam.description}</p>
+
+                {/* Prep timeline chip */}
+                <div className="flex items-center gap-1.5 mt-auto pt-1">
+                  <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-xs text-gray-500">
+                    Start prep: <span className="font-semibold text-gray-700">{exam.startPrep}</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs text-gray-400 mt-4 text-center">
+            💡 Tip — Consistent daily study of 2–3 hours from Class 10/11 gives you a significant edge in most of these exams.
+          </p>
         </div>
 
         {/* Action Buttons */}

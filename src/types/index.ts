@@ -5,7 +5,7 @@ export interface Profile {
   school_name?: string
   city?: string
   phone?: string
-  role: 'student' | 'parent' | 'teacher'
+  role: 'student' | 'parent' | 'counsellor'
   language_preference?: string
   stream_preference?: 'Science' | 'Commerce' | 'Humanities' | 'not_sure' | null
   created_at?: string

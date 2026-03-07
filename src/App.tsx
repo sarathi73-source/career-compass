@@ -20,6 +20,8 @@ import ParentDashboard from '@/pages/ParentDashboard'
 import ProfileEdit from '@/pages/ProfileEdit'
 import Careers from '@/pages/Careers'
 import NotFound from '@/pages/NotFound'
+import CounsellorSignup from '@/pages/CounsellorSignup'
+import CounsellorDashboard from '@/pages/CounsellorDashboard'
 
 function App() {
   return (
@@ -36,6 +38,7 @@ function App() {
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/parent/signup" element={<PublicRoute><ParentSignup /></PublicRoute>} />
+            <Route path="/counsellor/signup" element={<PublicRoute><CounsellorSignup /></PublicRoute>} />
             <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
             {/* Student protected routes */}
@@ -52,6 +55,16 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="parent">
                   <ParentDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Counsellor protected routes */}
+            <Route
+              path="/counsellor/dashboard"
+              element={
+                <ProtectedRoute requiredRole="counsellor">
+                  <CounsellorDashboard />
                 </ProtectedRoute>
               }
             />
