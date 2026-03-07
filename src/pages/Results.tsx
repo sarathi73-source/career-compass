@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Download, Share2, ArrowRight, Sparkles, CheckCircle, Lock, RotateCcw, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -32,6 +32,8 @@ export default function Results() {
   const [notReady, setNotReady] = useState(false)
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false)
   const [retaking, setRetaking] = useState(false)
+  // Prevents React 18 StrictMode's double-effect from running loadResults twice
+  const loadResultsRunning = useRef(false)
 
   useEffect(() => {
     if (user) loadResults()
@@ -93,6 +95,17 @@ export default function Results() {
   }, [profile])
 
   const loadResults = useCallback(async () => {
+    // ── Concurrency guard ─────────────────────────────────────────────────────
+    // React 18 StrictMode intentionally runs every effect twice in development.
+    // Without this guard, two simultaneous loadResults() calls would both skip
+    // the early-exit cache check (result is stale after a retake) and both try
+    // to INSERT a new result row → two DB errors → two "Error loading results"
+    // toasts. The ref is set synchronously before any await, so the second call
+    // always sees it as true and exits immediately. The loading spinner stays
+    // visible until the first (real) call finishes in its finally block.
+    if (loadResultsRunning.current) return
+    loadResultsRunning.current = true
+
     try {
       // Fetch ALL completed assessments for each type (not just the latest)
       // This ensures we find the one that actually has responses saved
@@ -211,21 +224,43 @@ export default function Results() {
 
       if (latestCached) setPreviousResult(latestCached)
 
-      // Insert NEW result row (keep history — never delete old results)
-      const { data: savedResult, error } = await supabase.from('results').insert({
+      // Insert NEW result row (keep history — never delete old results).
+      // Strategy: try with attempt_number first. If PostgREST schema cache is
+      // still stale after migration 004 (it may not have reloaded yet), the
+      // column is unknown to the API and the insert fails with a 400. In that
+      // case we fall back to an insert without attempt_number so the DB default
+      // of 1 applies — the row is still preserved as a separate history entry.
+      const basePayload = {
         student_id: user!.id,
         stream: stream,
         recommended_stream: stream,
         science_score: calculatedScores.science,
         commerce_score: calculatedScores.commerce,
         humanities_score: calculatedScores.humanities,
-        attempt_number: nextAttemptNumber,
         reasoning: reasoning,
-      }).select().single()
+      }
 
-      if (error) throw error
+      const { data: d1, error: e1 } = await supabase
+        .from('results')
+        .insert({ ...basePayload, attempt_number: nextAttemptNumber })
+        .select()
+        .single()
 
-      setResult(savedResult as Result)
+      let savedResult: Result
+      if (e1) {
+        console.warn('Insert with attempt_number failed (stale schema cache?), retrying without it:', e1.message)
+        const { data: d2, error: e2 } = await supabase
+          .from('results')
+          .insert(basePayload)
+          .select()
+          .single()
+        if (e2) throw e2
+        savedResult = d2 as Result
+      } else {
+        savedResult = d1 as Result
+      }
+
+      setResult(savedResult)
       setScores(calculatedScores)
 
       generateAINarrative(savedResult.id, calculatedScores, stream, aptMap, intMap)
@@ -234,6 +269,7 @@ export default function Results() {
       showToast('Error loading results. Please try again.', 'error')
     } finally {
       setLoading(false)
+      loadResultsRunning.current = false  // Allow future calls (e.g. navigate away & back)
     }
   }, [user, generateAINarrative, showToast])
 
