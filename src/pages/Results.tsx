@@ -97,9 +97,9 @@ export default function Results() {
       // Fetch ALL completed assessments for each type (not just the latest)
       // This ensures we find the one that actually has responses saved
       const [aptRes, intRes, perRes] = await Promise.all([
-        supabase.from('assessments').select('id, status').eq('student_id', user!.id).eq('type', 'aptitude').eq('status', 'completed').order('created_at', { ascending: false }),
-        supabase.from('assessments').select('id, status').eq('student_id', user!.id).eq('type', 'interest').eq('status', 'completed').order('created_at', { ascending: false }),
-        supabase.from('assessments').select('id, status').eq('student_id', user!.id).eq('type', 'personality').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'aptitude').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'interest').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'personality').eq('status', 'completed').order('created_at', { ascending: false }),
       ])
 
       const aptitudeList = aptRes.data || []
@@ -112,6 +112,42 @@ export default function Results() {
         return
       }
 
+      // ── Guard: avoid inserting a duplicate result on every page visit ────────
+      // "Up-to-date" = a result already exists that was created AFTER all three
+      // assessments were last completed → just display it, skip recalculation.
+      const latestAssessmentTime = [
+        (aptitudeList[0] as { completed_at?: string })?.completed_at,
+        (interestList[0] as { completed_at?: string })?.completed_at,
+        (personalityList[0] as { completed_at?: string })?.completed_at,
+      ].filter(Boolean).sort().pop()
+
+      const { data: cachedResults } = await supabase
+        .from('results')
+        .select('*')
+        .eq('student_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      const latestCached = (cachedResults?.[0] ?? null) as Result | null
+      const prevCached   = (cachedResults?.[1] ?? null) as Result | null
+
+      if (
+        latestCached?.created_at &&
+        latestAssessmentTime &&
+        new Date(latestCached.created_at) >= new Date(latestAssessmentTime)
+      ) {
+        // Result is current — display without inserting a new row
+        if (prevCached) setPreviousResult(prevCached)
+        setResult(latestCached)
+        setScores({
+          science:    latestCached.science_score as number,
+          commerce:   latestCached.commerce_score as number,
+          humanities: latestCached.humanities_score as number,
+        })
+        return
+      }
+
+      // ── New/retaken assessments detected → recalculate and insert ────────────
       // Helper: find the assessment ID that has the most responses saved
       const findBestAssessmentId = async (ids: string[], minComplete: number): Promise<{ id: string; responses: { question_id: string; answer_value: string }[] } | null> => {
         let best: { id: string; responses: { question_id: string; answer_value: string }[] } | null = null
@@ -168,20 +204,12 @@ export default function Results() {
       console.log('calculatedScores:', calculatedScores)
       const { stream, reasoning } = getStreamRecommendation(calculatedScores)
 
-      // Fetch existing results to determine attempt number and previous scores for delta display
-      const { data: existingResults } = await supabase
-        .from('results')
-        .select('attempt_number, science_score, commerce_score, humanities_score, recommended_stream')
-        .eq('student_id', user!.id)
-        .order('attempt_number', { ascending: false })
-        .limit(1)
-
-      const previousResult = existingResults?.[0] || null
-      const nextAttemptNumber = previousResult
-        ? ((previousResult.attempt_number as number) || 1) + 1
+      // latestCached is the "previous" result — use it for attempt numbering & delta display
+      const nextAttemptNumber = latestCached
+        ? ((latestCached.attempt_number as number) || 1) + 1
         : 1
 
-      if (previousResult) setPreviousResult(previousResult as Result)
+      if (latestCached) setPreviousResult(latestCached)
 
       // Insert NEW result row (keep history — never delete old results)
       const { data: savedResult, error } = await supabase.from('results').insert({
@@ -233,8 +261,9 @@ export default function Results() {
       // 3. Delete all assessments
       await supabase.from('assessments').delete().eq('student_id', user.id)
 
-      // 4. Delete all results
-      await supabase.from('results').delete().eq('student_id', user.id)
+      // 4. Results are intentionally preserved for history.
+      //    Only assessment answers are cleared so the student can retake.
+      //    When they complete and visit Results, the new scores are saved as Attempt #N.
 
       showToast('Assessments cleared — start fresh whenever you\'re ready! 🔄', 'success')
       navigate('/dashboard')
