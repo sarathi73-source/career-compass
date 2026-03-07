@@ -63,7 +63,11 @@ export default function CounsellorDashboard() {
         .eq('id', user!.id)
         .single()
 
-      const sn = (myProfile as { school_name?: string } | null)?.school_name || null
+      // Use AuthContext profile as fallback in case the direct DB fetch is
+      // blocked (e.g., orphaned profile row / RLS mismatch — see migration 006)
+      const sn = (myProfile as { school_name?: string } | null)?.school_name
+              || profile?.school_name
+              || null
       setSchoolName(sn)
 
       if (!sn) {

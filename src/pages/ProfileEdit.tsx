@@ -58,7 +58,14 @@ export default function ProfileEdit() {
 
       await refreshProfile()
       showToast('Profile updated successfully!', 'success')
-      navigate('/dashboard')
+
+      // Redirect to the dashboard that matches the user's role
+      const role = profile?.role || (user?.user_metadata?.role as string | undefined)
+      navigate(
+        role === 'counsellor' ? '/counsellor/dashboard' :
+        role === 'parent'     ? '/parent/dashboard' :
+        '/dashboard'
+      )
     } catch {
       showToast('Failed to update profile. Please try again.', 'error')
     }
