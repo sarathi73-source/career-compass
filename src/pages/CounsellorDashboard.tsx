@@ -39,20 +39,38 @@ export default function CounsellorDashboard() {
   const { user, profile } = useAuth()
   const { showToast }     = useToast()
 
-  const [students, setStudents] = useState<StudentRow[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [search,   setSearch]   = useState('')
+  const [students,   setStudents]   = useState<StudentRow[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [search,     setSearch]     = useState('')
   const [gradeFilter, setGradeFilter] = useState<string>('all')
+  // Fetched directly from DB so it's always fresh (bypasses stale AuthContext
+  // profile that can be null right after signup before context refreshes)
+  const [schoolName, setSchoolName] = useState<string | null>(null)
 
   // ── Data loading ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (user && profile?.school_name) loadStudents()
-    else if (user) setLoading(false)
-  }, [user, profile])
+    if (user) loadStudents()
+  }, [user])
 
   const loadStudents = async () => {
     try {
+      // Fetch the counsellor's own school_name directly from DB so we always
+      // get the freshest value (AuthContext profile can be stale right after signup)
+      const { data: myProfile } = await supabase
+        .from('profiles')
+        .select('school_name')
+        .eq('id', user!.id)
+        .single()
+
+      const sn = (myProfile as { school_name?: string } | null)?.school_name || null
+      setSchoolName(sn)
+
+      if (!sn) {
+        setLoading(false)
+        return
+      }
+
       // Step 1: load all student profiles from the same school
       // (RLS policy "Counsellors can view school student profiles" handles filtering)
       const { data: profileRows, error: pErr } = await supabase
@@ -162,7 +180,7 @@ export default function CounsellorDashboard() {
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `${(profile?.school_name ?? 'school').replace(/\s+/g, '-')}-students-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `${(schoolName ?? 'school').replace(/\s+/g, '-')}-students-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -186,7 +204,7 @@ export default function CounsellorDashboard() {
 
   // ── No school name set ───────────────────────────────────────────────────────
 
-  if (!profile?.school_name) {
+  if (!schoolName) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto px-4 py-16 text-center">
@@ -228,7 +246,7 @@ export default function CounsellorDashboard() {
             <h1 className="text-2xl font-bold mb-0.5">
               Hello, {profile.full_name?.split(' ')[0] || 'Counsellor'}!
             </h1>
-            <p className="text-amber-100 text-sm">{profile.school_name}</p>
+            <p className="text-amber-100 text-sm">{schoolName}</p>
           </div>
         </div>
 
@@ -340,7 +358,7 @@ export default function CounsellorDashboard() {
               </div>
               <h3 className="text-lg font-bold text-gray-700 mb-2">No Students Found</h3>
               <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                No students from <strong>{profile.school_name}</strong> have signed up yet.
+                No students from <strong>{schoolName}</strong> have signed up yet.
                 Students must enter the exact same school name when they register.
               </p>
             </div>
