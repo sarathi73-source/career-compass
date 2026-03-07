@@ -193,6 +193,7 @@ export default function Results() {
   const [previousResult, setPreviousResult] = useState<Result | null>(null)
   const [scores, setScores] = useState<StreamScores | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [generatingNarrative, setGeneratingNarrative] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [notReady, setNotReady] = useState(false)
@@ -399,7 +400,6 @@ export default function Results() {
       const basePayload = {
         student_id: user!.id,
         stream: stream,
-        recommended_stream: stream,
         science_score: calculatedScores.science,
         commerce_score: calculatedScores.commerce,
         humanities_score: calculatedScores.humanities,
@@ -432,6 +432,7 @@ export default function Results() {
       generateAINarrative(savedResult.id, calculatedScores, stream, aptMap, intMap)
     } catch (err) {
       console.error('Error loading results:', err)
+      setLoadError(true)
       showToast('Error loading results. Please try again.', 'error')
     } finally {
       setLoading(false)
@@ -530,6 +531,42 @@ export default function Results() {
           >
             Go to Dashboard <ArrowRight size={18} />
           </Link>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (loadError || (!result && !loading && !notReady)) {
+    return (
+      <Layout>
+        <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle size={36} className="text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Couldn't Load Your Results</h2>
+          <p className="text-gray-500 mb-8">
+            Something went wrong while calculating your results. This is usually a temporary issue.
+            Please try again — your assessment data is safe.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => {
+                setLoadError(false)
+                setLoading(true)
+                loadResultsRunning.current = false
+                loadResults()
+              }}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              <RotateCcw size={18} /> Try Again
+            </button>
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </Layout>
     )

@@ -21,6 +21,11 @@ export default function Navbar() {
   }
 
   const dashboardPath = profile?.role === 'parent' ? '/parent/dashboard' : '/dashboard'
+  // Show name from profile, user metadata, or derive from email — never just 'User'
+  const displayName = profile?.full_name
+    || (user?.user_metadata?.full_name as string | undefined)
+    || user?.email?.split('@')[0]
+    || 'User'
   const isActive = (path: string) => location.pathname === path
 
   const navLinkClass = (path: string) =>
@@ -57,11 +62,11 @@ export default function Navbar() {
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-blue-600 text-sm font-semibold">
-                      {profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      {displayName.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
-                    {profile?.full_name || 'User'}
+                    {displayName}
                   </span>
                   <ChevronDown size={16} className="text-gray-400" />
                 </button>
