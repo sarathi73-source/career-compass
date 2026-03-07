@@ -244,7 +244,7 @@ export default function CounsellorDashboard() {
               <p className="text-amber-100 text-sm">School Counsellor Dashboard</p>
             </div>
             <h1 className="text-2xl font-bold mb-0.5">
-              Hello, {profile.full_name?.split(' ')[0] || 'Counsellor'}!
+              Hello, {profile?.full_name?.split(' ')[0] || 'Counsellor'}!
             </h1>
             <p className="text-amber-100 text-sm">{schoolName}</p>
           </div>

@@ -52,9 +52,11 @@ export default function Login() {
           .select('role')
           .eq('id', authData.user.id)
           .single()
+        // Fallback to user_metadata.role if the DB fetch returns null
+        const role = profile?.role || (authData.user.user_metadata?.role as string | undefined)
         const redirectTo =
-          profile?.role === 'parent'     ? '/parent/dashboard' :
-          profile?.role === 'counsellor' ? '/counsellor/dashboard' :
+          role === 'parent'     ? '/parent/dashboard' :
+          role === 'counsellor' ? '/counsellor/dashboard' :
           from
         navigate(redirectTo, { replace: true })
       }

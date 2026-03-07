@@ -42,11 +42,11 @@ function App() {
             <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
             {/* Student protected routes */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/assessment" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
-            <Route path="/interest-inventory" element={<ProtectedRoute><InterestInventory /></ProtectedRoute>} />
-            <Route path="/personality" element={<ProtectedRoute><Personality /></ProtectedRoute>} />
-            <Route path="/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute requiredRole="student"><Dashboard /></ProtectedRoute>} />
+            <Route path="/assessment" element={<ProtectedRoute requiredRole="student"><Assessment /></ProtectedRoute>} />
+            <Route path="/interest-inventory" element={<ProtectedRoute requiredRole="student"><InterestInventory /></ProtectedRoute>} />
+            <Route path="/personality" element={<ProtectedRoute requiredRole="student"><Personality /></ProtectedRoute>} />
+            <Route path="/results" element={<ProtectedRoute requiredRole="student"><Results /></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><ProfileEdit /></ProtectedRoute>} />
 
             {/* Parent protected routes */}
