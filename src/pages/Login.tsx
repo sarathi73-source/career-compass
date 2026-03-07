@@ -52,7 +52,10 @@ export default function Login() {
           .select('role')
           .eq('id', authData.user.id)
           .single()
-        const redirectTo = profile?.role === 'parent' ? '/parent/dashboard' : from
+        const redirectTo =
+          profile?.role === 'parent'     ? '/parent/dashboard' :
+          profile?.role === 'counsellor' ? '/counsellor/dashboard' :
+          from
         navigate(redirectTo, { replace: true })
       }
     } catch {
