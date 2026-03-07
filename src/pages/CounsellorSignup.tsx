@@ -53,14 +53,26 @@ export default function CounsellorSignup() {
       }
 
       if (authData.user) {
-        await supabase.from('profiles').upsert({
-          id:          authData.user.id,
-          full_name:   data.full_name,
-          school_name: data.school_name,
-          city:        data.city,
-          phone:       data.phone || null,
-          role:        'counsellor',
-        })
+        // The auth trigger already inserted the profile row (id, full_name, email, role).
+        // We update it with counsellor-specific fields that the trigger doesn't capture.
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            full_name:   data.full_name,
+            school_name: data.school_name,
+            city:        data.city,
+            phone:       data.phone || null,
+            role:        'counsellor',
+          })
+          .eq('id', authData.user.id)
+
+        if (profileError) {
+          console.error('Profile update failed:', profileError)
+          setError('school_name', {
+            message: `Profile save failed: ${profileError.message}. Please try again.`,
+          })
+          return
+        }
 
         showToast('Counsellor account created! Welcome 🎉', 'success')
         navigate('/counsellor/dashboard', { replace: true })
