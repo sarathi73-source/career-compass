@@ -23,12 +23,23 @@ update public.assessment_responses
     and question_index is not null;
 
 -- Unique constraint on (assessment_id, question_id)
+-- Drop old index-based constraint if it exists
 alter table public.assessment_responses
   drop constraint if exists assessment_responses_assessment_id_question_index_key;
 
-alter table public.assessment_responses
-  add constraint if not exists assessment_responses_assessment_id_question_id_key
-  unique (assessment_id, question_id);
+-- Add new constraint only if it doesn't already exist
+-- (ADD CONSTRAINT IF NOT EXISTS not supported in all PG versions)
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'assessment_responses_assessment_id_question_id_key'
+  ) then
+    alter table public.assessment_responses
+      add constraint assessment_responses_assessment_id_question_id_key
+      unique (assessment_id, question_id);
+  end if;
+end $$;
 
 -- results: recommended_stream (added by 003)
 alter table public.results
