@@ -277,9 +277,9 @@ export default function Results() {
       // Fetch ALL completed assessments for each type (not just the latest)
       // This ensures we find the one that actually has responses saved
       const [aptRes, intRes, perRes] = await Promise.all([
-        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'aptitude').eq('status', 'completed').order('created_at', { ascending: false }),
-        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'interest').eq('status', 'completed').order('created_at', { ascending: false }),
-        supabase.from('assessments').select('id, status, completed_at').eq('student_id', user!.id).eq('type', 'personality').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at, created_at').eq('student_id', user!.id).eq('type', 'aptitude').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at, created_at').eq('student_id', user!.id).eq('type', 'interest').eq('status', 'completed').order('created_at', { ascending: false }),
+        supabase.from('assessments').select('id, status, completed_at, created_at').eq('student_id', user!.id).eq('type', 'personality').eq('status', 'completed').order('created_at', { ascending: false }),
       ])
 
       const aptitudeList = aptRes.data || []
@@ -295,10 +295,13 @@ export default function Results() {
       // ── Guard: avoid inserting a duplicate result on every page visit ────────
       // "Up-to-date" = a result already exists that was created AFTER all three
       // assessments were last completed → just display it, skip recalculation.
+      // Use completed_at when available; fall back to created_at so the guard
+      // still works even if completed_at was null on older assessment rows.
+      type AsmTime = { completed_at?: string; created_at?: string }
       const latestAssessmentTime = [
-        (aptitudeList[0] as { completed_at?: string })?.completed_at,
-        (interestList[0] as { completed_at?: string })?.completed_at,
-        (personalityList[0] as { completed_at?: string })?.completed_at,
+        ((aptitudeList[0] as AsmTime)?.completed_at   ?? (aptitudeList[0] as AsmTime)?.created_at),
+        ((interestList[0] as AsmTime)?.completed_at   ?? (interestList[0] as AsmTime)?.created_at),
+        ((personalityList[0] as AsmTime)?.completed_at ?? (personalityList[0] as AsmTime)?.created_at),
       ].filter(Boolean).sort().pop()
 
       const { data: cachedResults } = await supabase
@@ -314,7 +317,7 @@ export default function Results() {
       if (
         latestCached?.created_at &&
         latestAssessmentTime &&
-        new Date(latestCached.created_at) >= new Date(latestAssessmentTime)
+        new Date(latestCached.created_at) > new Date(latestAssessmentTime)
       ) {
         // Result is current — display without inserting a new row
         if (prevCached) setPreviousResult(prevCached)
@@ -400,6 +403,7 @@ export default function Results() {
       const basePayload = {
         student_id: user!.id,
         stream: stream,
+        recommended_stream: stream,   // keep in sync with the stream column
         science_score: calculatedScores.science,
         commerce_score: calculatedScores.commerce,
         humanities_score: calculatedScores.humanities,
@@ -507,10 +511,49 @@ export default function Results() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-          <p className="text-gray-500 text-lg">Calculating your results...</p>
-          <p className="text-gray-400 text-sm mt-2">This may take a moment</p>
+        <div className="max-w-3xl mx-auto px-4 py-8 animate-pulse">
+          {/* Stream banner placeholder */}
+          <div className="rounded-2xl bg-gray-200 h-52 mb-6" />
+          {/* Score section placeholder */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-4">
+            <div className="h-5 bg-gray-200 rounded w-40 mb-5" />
+            {[1, 2, 3].map(i => (
+              <div key={i} className="mb-4 last:mb-0">
+                <div className="flex justify-between mb-2">
+                  <div className="h-4 bg-gray-200 rounded w-24" />
+                  <div className="h-4 bg-gray-200 rounded w-12" />
+                </div>
+                <div className="h-3 bg-gray-200 rounded-full" />
+              </div>
+            ))}
+          </div>
+          {/* AI narrative placeholder */}
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 mb-4">
+            <div className="h-5 bg-gray-200 rounded w-32 mb-4" />
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-5/6" />
+              <div className="h-4 bg-gray-200 rounded w-4/6" />
+            </div>
+          </div>
+          {/* Career paths placeholder */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-4">
+            <div className="h-5 bg-gray-200 rounded w-36 mb-4" />
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-20 bg-gray-200 rounded-xl" />
+              ))}
+            </div>
+          </div>
+          {/* Exam roadmap placeholder */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="h-5 bg-gray-200 rounded w-48 mb-4" />
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-28 bg-gray-200 rounded-xl" />
+              ))}
+            </div>
+          </div>
         </div>
       </Layout>
     )
@@ -632,7 +675,7 @@ export default function Results() {
         )}
 
         {/* Stream Recommendation Hero */}
-        <div className={`${colors.bg} rounded-2xl p-8 text-white text-center mb-8 relative overflow-hidden`}>
+        <div className={`${colors.bg} rounded-2xl p-6 sm:p-8 text-white text-center mb-8 relative overflow-hidden`}>
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -translate-y-20 translate-x-20" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full translate-y-16 -translate-x-16" />

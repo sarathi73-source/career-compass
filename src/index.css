@@ -2,26 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force light-ONLY color scheme — the "only" keyword explicitly blocks
+   Edge/Chrome from auto-darkening the page even when Windows is in dark mode.
+   Without "only", the browser may still apply algorithmic dark-mode transforms. */
 :root {
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: only light;
+}
+
+html {
+  background-color: #ffffff;
+  forced-color-adjust: none; /* Prevents Windows high-contrast/forced-color from overriding */
 }
 
 body {
   margin: 0;
-  display: flex;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #f8fafc; /* = bg-slate-50 */
 }
 
 #root {
   width: 100%;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
 }

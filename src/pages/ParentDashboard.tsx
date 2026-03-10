@@ -222,7 +222,7 @@ export default function ParentDashboard() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-3 mt-4">
+                      <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         {student.result.share_token && (
                           <Link
                             to={`/share/${student.result.share_token}`}

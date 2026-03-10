@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Menu, X, Compass, ChevronDown, LogOut, User, LayoutDashboard } from 'lucide-react'
+import { Menu, X, Compass, ChevronDown, LogOut, User, LayoutDashboard, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/shared/Toast'
 
@@ -12,6 +12,29 @@ export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Ref for the profile dropdown container — used for click-outside detection.
+  // This replaces the old `fixed inset-0 z-10` invisible backdrop div which
+  // blocked all page interactions when left mounted after navigation.
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  // Close profile dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!profileOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [profileOpen])
+
+  // Also close everything on route change (belt-and-suspenders guard)
+  useEffect(() => {
+    setProfileOpen(false)
+    setMenuOpen(false)
+  }, [location.pathname])
+
   const handleSignOut = async () => {
     await signOut()
     showToast('Signed out successfully', 'success')
@@ -20,7 +43,10 @@ export default function Navbar() {
     setProfileOpen(false)
   }
 
-  const dashboardPath = profile?.role === 'parent' ? '/parent/dashboard' : '/dashboard'
+  const dashboardPath =
+    profile?.role === 'admin' ? '/admin' :
+    profile?.role === 'parent' ? '/parent/dashboard' :
+    '/dashboard'
   // Show name from profile, user metadata, or derive from email — never just 'User'
   const displayName = profile?.full_name
     || (user?.user_metadata?.full_name as string | undefined)
@@ -47,15 +73,23 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-6">
             <Link to="/" className={navLinkClass('/')}>Home</Link>
             <Link to="/careers" className={navLinkClass('/careers')}>Careers</Link>
-            {user && (
+            {user && profile?.role !== 'admin' && (
               <Link to={dashboardPath} className={navLinkClass(dashboardPath)}>Dashboard</Link>
+            )}
+            {profile?.role === 'admin' && (
+              <>
+                <Link to="/dashboard" className={navLinkClass('/dashboard')}>My Dashboard</Link>
+                <Link to="/admin" className={navLinkClass('/admin')}>Admin Panel</Link>
+              </>
             )}
           </div>
 
           {/* Desktop Auth */}
           <div className="hidden md:flex items-center gap-3">
             {user ? (
-              <div className="relative">
+              // Attach ref here — click-outside detection closes the dropdown
+              // without needing any fixed overlay div
+              <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -72,9 +106,27 @@ export default function Navbar() {
                 </button>
 
                 {profileOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
+                    {profile?.role === 'admin' ? (
+                      <>
+                        <Link
+                          to="/dashboard"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <LayoutDashboard size={16} />
+                          My Dashboard
+                        </Link>
+                        <Link
+                          to="/admin"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <ShieldCheck size={16} />
+                          Admin Panel
+                        </Link>
+                      </>
+                    ) : (
                       <Link
                         to={dashboardPath}
                         onClick={() => setProfileOpen(false)}
@@ -83,24 +135,24 @@ export default function Navbar() {
                         <LayoutDashboard size={16} />
                         Dashboard
                       </Link>
-                      <Link
-                        to="/profile/edit"
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <User size={16} />
-                        Edit Profile
-                      </Link>
-                      <hr className="my-1 border-gray-100" />
-                      <button
-                        onClick={handleSignOut}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                      >
-                        <LogOut size={16} />
-                        Sign Out
-                      </button>
-                    </div>
-                  </>
+                    )}
+                    <Link
+                      to="/profile/edit"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <User size={16} />
+                      Edit Profile
+                    </Link>
+                    <hr className="my-1 border-gray-100" />
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                    >
+                      <LogOut size={16} />
+                      Sign Out
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -151,13 +203,32 @@ export default function Navbar() {
           </Link>
           {user ? (
             <>
-              <Link
-                to={dashboardPath}
-                onClick={() => setMenuOpen(false)}
-                className={`py-3 px-2 text-sm font-medium rounded-lg ${isActive(dashboardPath) ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
-              >
-                Dashboard
-              </Link>
+              {profile?.role === 'admin' ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className={`py-3 px-2 text-sm font-medium rounded-lg ${isActive('/dashboard') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    My Dashboard
+                  </Link>
+                  <Link
+                    to="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    className={`py-3 px-2 text-sm font-medium rounded-lg ${isActive('/admin') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Admin Panel
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  to={dashboardPath}
+                  onClick={() => setMenuOpen(false)}
+                  className={`py-3 px-2 text-sm font-medium rounded-lg ${isActive(dashboardPath) ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Dashboard
+                </Link>
+              )}
               <Link
                 to="/profile/edit"
                 onClick={() => setMenuOpen(false)}

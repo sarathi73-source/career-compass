@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/shared/Toast'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PublicRoute } from '@/components/auth/PublicRoute'
+import { AdminRoute } from '@/components/auth/AdminRoute'
 
 // Pages
 import Index from '@/pages/Index'
@@ -19,6 +20,7 @@ import ShareResults from '@/pages/ShareResults'
 import ParentDashboard from '@/pages/ParentDashboard'
 import ProfileEdit from '@/pages/ProfileEdit'
 import Careers from '@/pages/Careers'
+import AdminDashboard from '@/pages/AdminDashboard'
 import NotFound from '@/pages/NotFound'
 
 function App() {
@@ -53,6 +55,16 @@ function App() {
                 <ProtectedRoute requiredRole="parent">
                   <ParentDashboard />
                 </ProtectedRoute>
+              }
+            />
+
+            {/* Admin protected route */}
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
               }
             />
 

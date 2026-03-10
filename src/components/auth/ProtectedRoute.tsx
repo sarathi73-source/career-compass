@@ -7,10 +7,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, profileLoading } = useAuth()
   const location = useLocation()
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
@@ -26,6 +26,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (requiredRole && profile && profile.role !== requiredRole) {
+    // Admins can access all routes — they bypass role checks
+    if (profile.role === 'admin') return <>{children}</>
+
     const redirectTo =
       profile.role === 'parent' ? '/parent/dashboard' :
       '/dashboard'

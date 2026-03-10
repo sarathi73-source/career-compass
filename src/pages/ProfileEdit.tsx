@@ -101,7 +101,7 @@ export default function ProfileEdit() {
               {errors.full_name && <p className="mt-1 text-xs text-red-600">{errors.full_name.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1.5">Grade</label>
                 <select id="grade" className={inputClass(false) + ' bg-white'} {...register('grade')}>

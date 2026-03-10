@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null
   profile: Profile | null
   loading: boolean
+  profileLoading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue>({
   session: null,
   profile: null,
   loading: true,
+  profileLoading: false,
   signOut: async () => {},
   refreshProfile: async () => {},
 })
@@ -26,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -61,9 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchProfile(session.user.id)
+        setProfileLoading(true)
+        fetchProfile(session.user.id).finally(() => setProfileLoading(false))
       } else {
         setProfile(null)
+        setProfileLoading(false)
       }
     })
 
@@ -78,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, profileLoading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

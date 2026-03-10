@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle, Clock, Lock, Play, ArrowRight, Star, BookOpen, Brain, Sparkles, RotateCcw } from 'lucide-react'
+import { CheckCircle, Clock, Lock, Play, ArrowRight, Star, BookOpen, Brain, Sparkles, History } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/layout/Layout'
@@ -13,6 +13,22 @@ interface AssessmentStatus {
   personality: Assessment | null
 }
 
+// Stream colour tokens used by Attempt History cards
+const STREAM_CONFIG = {
+  Science: {
+    light: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',
+    bar: 'bg-blue-500',    dot: 'bg-blue-600',
+  },
+  Commerce: {
+    light: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',
+    bar: 'bg-green-500',   dot: 'bg-green-600',
+  },
+  Humanities: {
+    light: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700',
+    bar: 'bg-indigo-500',  dot: 'bg-indigo-600',
+  },
+} as const
+
 export default function Dashboard() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
@@ -21,7 +37,8 @@ export default function Dashboard() {
     interest: null,
     personality: null,
   })
-  const [result, setResult] = useState<Result | null>(null)
+  // All past results for this student, sorted oldest → newest (index 0 = Attempt 1)
+  const [results, setResults] = useState<Result[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -31,10 +48,11 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       const [aptRes, intRes, perRes, resultRes] = await Promise.all([
-        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'aptitude').order('started_at', { ascending: false }).limit(1),
-        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'interest').order('started_at', { ascending: false }).limit(1),
-        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'personality').order('started_at', { ascending: false }).limit(1),
-        supabase.from('results').select('*').eq('student_id', user!.id).order('created_at', { ascending: false }).limit(1),
+        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'aptitude').order('updated_at', { ascending: false }).limit(1),
+        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'interest').order('updated_at', { ascending: false }).limit(1),
+        supabase.from('assessments').select('*').eq('student_id', user!.id).eq('type', 'personality').order('updated_at', { ascending: false }).limit(1),
+        // Fetch ALL results, oldest first → index 0 = Attempt 1, last = latest
+        supabase.from('results').select('*').eq('student_id', user!.id).order('created_at', { ascending: true }),
       ])
 
       setAssessments({
@@ -42,7 +60,21 @@ export default function Dashboard() {
         interest: intRes.data?.[0] || null,
         personality: perRes.data?.[0] || null,
       })
-      setResult(resultRes.data?.[0] || null)
+      // Deduplicate results: if the DB has two rows with the same attempt_number
+      // (can happen if a retake was interrupted and re-run), keep only the newest
+      // one for each attempt_number so the Attempt History shows clean cards.
+      const rawResults = (resultRes.data || []) as Result[]
+      const seenNums = new Set<number>()
+      const deduped = [...rawResults]
+        .reverse()                          // newest first
+        .filter(r => {
+          if (r.attempt_number == null) return true  // always keep null-numbered
+          if (seenNums.has(r.attempt_number)) return false
+          seenNums.add(r.attempt_number)
+          return true
+        })
+        .reverse()                          // restore oldest-first order
+      setResults(deduped)
     } catch (err) {
       console.error('Error loading dashboard data:', err)
     } finally {
@@ -253,30 +285,121 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Already have results */}
-        {result && (
-          <div className="mt-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-sm text-gray-500 mb-2">Previous result available:</p>
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-bold text-blue-600 text-lg">{result.recommended_stream} Stream</span>
-                <p className="text-xs text-gray-400 mt-0.5">Generated on {new Date(result.created_at!).toLocaleDateString('en-IN')}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <Link
-                  to="/results"
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
-                >
-                  View <ArrowRight size={16} />
-                </Link>
-                <Link
-                  to="/results"
-                  className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors group"
-                >
-                  <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
-                  Retake
-                </Link>
-              </div>
+        {/* ── Attempt History ───────────────────────────────────────── */}
+        {results.length > 0 && (
+          <div className="mt-10">
+            {/* Section header */}
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <History size={20} className="text-indigo-600" />
+              Attempt History
+              <span className="ml-1 px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">
+                {results.length}
+              </span>
+            </h2>
+
+            {/* Cards — newest first */}
+            <div className="space-y-3">
+              {(() => {
+                const reversedResults = [...results].reverse()
+                return reversedResults.map((r, idx) => {
+                // results is oldest→newest; reversed = newest first
+                // idx 0 = latest attempt, idx N-1 = attempt 1
+                const attemptNum = r.attempt_number ?? (results.length - idx)
+                const isLatest   = idx === 0
+                const sc         = STREAM_CONFIG[r.recommended_stream as keyof typeof STREAM_CONFIG]
+                                ?? STREAM_CONFIG.Science
+                // Detect if this attempt's scores are identical to the previous attempt
+                const prevAttempt = reversedResults[idx + 1]
+                const scoresIdentical = prevAttempt != null &&
+                  r.science_score    === prevAttempt.science_score &&
+                  r.commerce_score   === prevAttempt.commerce_score &&
+                  r.humanities_score === prevAttempt.humanities_score &&
+                  r.recommended_stream === prevAttempt.recommended_stream
+
+                return (
+                  <div
+                    key={r.id}
+                    className={`bg-white rounded-xl p-5 border shadow-sm transition-all duration-200 ${
+                      isLatest
+                        ? 'border-indigo-200 ring-2 ring-indigo-50'
+                        : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Header row: attempt badge + date */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${sc.light} ${sc.text} ${sc.border}`}>
+                          Attempt {attemptNum}
+                        </span>
+                        {isLatest && (
+                          <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
+                            Latest
+                          </span>
+                        )}
+                        {scoresIdentical && (
+                          <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                            Same as prev.
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {new Date(r.created_at!).toLocaleDateString('en-IN', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Recommended stream */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} />
+                      <span className="font-bold text-gray-800 text-sm">
+                        {r.recommended_stream} Stream
+                      </span>
+                    </div>
+
+                    {/* Mini score bars */}
+                    <div className="space-y-1.5 mb-4">
+                      {(
+                        [
+                          { label: 'Science',    score: r.science_score,    bar: 'bg-blue-500'   },
+                          { label: 'Commerce',   score: r.commerce_score,   bar: 'bg-green-500'  },
+                          { label: 'Humanities', score: r.humanities_score, bar: 'bg-indigo-500' },
+                        ] as const
+                      ).map(({ label, score, bar }) => (
+                        <div key={label} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${bar} rounded-full transition-all duration-700`}
+                              style={{ width: `${score}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-600 w-10 text-right tabular-nums">
+                            {score}/100
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Action */}
+                    {isLatest ? (
+                      <Link
+                        to="/results"
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        View Full Report <ArrowRight size={14} />
+                      </Link>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">
+                        {scoresIdentical
+                          ? 'Scores matched your previous attempt — you may have answered similarly.'
+                          : 'Retake all assessments to generate a new result.'}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            )()}
             </div>
           </div>
         )}
