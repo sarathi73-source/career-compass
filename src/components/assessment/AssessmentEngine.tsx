@@ -167,8 +167,6 @@ export default function AssessmentEngine({ type, questions, title, subtitle, onC
 
       if (insertError) {
         console.error('❌ Insert response failed:', insertError)
-      } else {
-        console.log('✅ Saved answer:', questionId, '=', value, '| assessment:', currentAssessmentId)
       }
 
       await supabase
@@ -231,7 +229,6 @@ export default function AssessmentEngine({ type, questions, title, subtitle, onC
     try {
       // Bulk-save ALL in-memory answers to DB before marking complete
       const answerEntries = Object.entries(answers)
-      console.log('🚀 Submitting with', answerEntries.length, 'answers for assessment', currentAssessmentId)
 
       let saveErrors = 0
       for (const [questionId, value] of answerEntries) {
@@ -252,8 +249,6 @@ export default function AssessmentEngine({ type, questions, title, subtitle, onC
         if (insertErr) {
           console.error('❌ Failed to save answer for', questionId, ':', insertErr)
           saveErrors++
-        } else {
-          console.log('✅ Saved:', questionId, '=', value)
         }
       }
 
@@ -516,6 +511,7 @@ export default function AssessmentEngine({ type, questions, title, subtitle, onC
               key={q.id}
               onClick={() => setCurrentIndex(idx)}
               title={`Question ${idx + 1}${answers[q.id] ? ' (answered)' : ' (unanswered)'}`}
+              aria-label={`Go to question ${idx + 1}${answers[q.id] ? ' (answered)' : ' (unanswered)'}`}
               className={`w-2.5 h-2.5 rounded-full transition-all ${
                 idx === currentIndex
                   ? 'bg-blue-600 w-4'

@@ -68,13 +68,13 @@ const EXAM_ROADMAP: Record<'Science' | 'Commerce' | 'Humanities', ExamEntry[]> =
       difficulty: 'Hard',
     },
     {
-      name: 'KVPY / INSPIRE',
-      fullName: 'Kishore Vaigyanik Protsahan Yojana',
+      name: 'INSPIRE',
+      fullName: 'Innovation in Science Pursuit for Inspired Research',
       emoji: '🌟',
-      description: 'Fellowship for research-oriented students. Strong boost for IISc and IISER admissions. Focus on fundamentals.',
+      description: 'DST scholarship for top 1% in Class 12 board exams. Supports research-oriented students through BSc and MSc. KVPY was discontinued in 2022.',
       startPrep: 'Class 11',
       level: 'National',
-      difficulty: 'Hard',
+      difficulty: 'Moderate',
     },
   ],
   Commerce: [
@@ -362,21 +362,11 @@ export default function Results() {
       const intMap = toMap(intBest?.responses || [])
       const perMap = toMap(perBest?.responses || [])
 
-      // DEBUG — open browser Console (F12) to see these values
-      console.log('=== SCORE DEBUG ===')
-      console.log('aptBest id:', aptBest?.id, '| responses:', aptBest?.responses?.length)
-      console.log('intBest id:', intBest?.id, '| responses:', intBest?.responses?.length)
-      console.log('perBest id:', perBest?.id, '| responses:', perBest?.responses?.length)
-      console.log('aptMap:', aptMap)
-      console.log('intMap:', intMap)
-      console.log('perMap:', perMap)
-
       // Detect which grade group was used for this assessment from the question ID prefixes.
       // This is more reliable than profile.grade (which may have changed since the assessment).
       const gradeForScoring =
         Object.keys(aptMap).some(k => k.startsWith('apt_d_')) ? '9' :
         Object.keys(aptMap).some(k => k.startsWith('apt_c_')) ? '11' : '10'
-      console.log('gradeForScoring detected:', gradeForScoring)
 
       const calculatedScores = calculateScores(
         aptMap, intMap, perMap,
@@ -384,7 +374,6 @@ export default function Results() {
         getFullQuestionPool(gradeForScoring, 'interest').filter(q => intMap[q.id] !== undefined),
         getFullQuestionPool(gradeForScoring, 'personality').filter(q => perMap[q.id] !== undefined),
       )
-      console.log('calculatedScores:', calculatedScores)
       const { stream, reasoning } = getStreamRecommendation(calculatedScores)
 
       // latestCached is the "previous" result — use it for attempt numbering & delta display

@@ -68,22 +68,22 @@ export default function Index() {
                 icon: <Brain size={28} className="text-blue-600" />,
                 bg: 'bg-blue-50',
                 title: 'Aptitude Test',
-                desc: 'Measures numerical, verbal, logical & spatial reasoning — 15 questions',
-                tag: '10 min',
+                desc: 'Measures numerical, verbal, logical & spatial reasoning — 20 questions',
+                tag: '13 min',
               },
               {
                 icon: <Star size={28} className="text-amber-600" />,
                 bg: 'bg-amber-50',
                 title: 'Interest Inventory',
-                desc: 'Discover what subjects and activities genuinely excite you — 15 questions',
-                tag: '8 min',
+                desc: 'Discover what subjects and activities genuinely excite you — 24 questions',
+                tag: '15 min',
               },
               {
                 icon: <Sparkles size={28} className="text-indigo-600" />,
                 bg: 'bg-indigo-50',
                 title: 'Personality Check',
-                desc: 'Understand your learning style and career personality — 5 questions',
-                tag: '5 min',
+                desc: 'Understand your learning style and career personality — 12 questions',
+                tag: '7 min',
               },
             ].map((item, i) => (
               <div key={i} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
