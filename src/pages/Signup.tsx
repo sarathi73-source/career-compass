@@ -16,6 +16,9 @@ const schema = z.object({
   school_name: z.string().min(2, 'School name must be at least 2 characters'),
   city: z.string().min(2, 'City must be at least 2 characters'),
   phone: z.string().optional(),
+  parental_consent: z.boolean().refine(val => val === true, {
+    message: 'You must confirm parental / guardian consent to create this account',
+  }),
 })
 
 type FormData = z.infer<typeof schema>
@@ -212,6 +215,25 @@ export default function Signup() {
                   placeholder="+91 9876543210"
                   {...register('phone')}
                 />
+              </div>
+
+              {/* Parental Consent */}
+              <div className="pt-1">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    id="parental_consent"
+                    type="checkbox"
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                    {...register('parental_consent')}
+                  />
+                  <span className="text-sm text-gray-700 leading-snug">
+                    I confirm I have <strong>parental / guardian consent</strong> to create this account
+                    <span className="text-red-500"> *</span>
+                  </span>
+                </label>
+                {errors.parental_consent && (
+                  <p className="mt-1.5 text-xs text-red-600">{errors.parental_consent.message}</p>
+                )}
               </div>
 
               {/* Submit */}

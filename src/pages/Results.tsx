@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/shared/Toast'
 import Layout from '@/components/layout/Layout'
-import { calculateScores, getStreamRecommendation, topCareers, buildNarrativePrompt } from '@/lib/scoring'
+import { calculateScores, getStreamRecommendation, topCareers } from '@/lib/scoring'
 import { generatePDF } from '@/lib/generatePDF'
 import { getFullQuestionPool } from '@/lib/questions'
 import { StreamScores, Result } from '@/types'
@@ -213,49 +213,28 @@ export default function Results() {
     aptMap: Record<string, string>,
     intMap: Record<string, string>,
   ) => {
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-    if (!apiKey) return
-
     setGeneratingNarrative(true)
     try {
       const aptCorrect = Object.values(aptMap).length
       const intValues = Object.values(intMap).map(v => parseInt(v))
       const intAvg = intValues.length > 0 ? intValues.reduce((s, v) => s + v, 0) / intValues.length : 0
 
-      const prompt = buildNarrativePrompt(
-        profile?.full_name || 'Student',
-        stream,
-        calcScores,
-        `answered ${aptCorrect} questions`,
-        `average interest rating of ${intAvg.toFixed(1)}/4`,
-        `personality aligned with ${stream}`
-      )
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
+      const { data, error } = await supabase.functions.invoke('generate-narrative', {
+        body: {
+          name: profile?.full_name || 'Student',
+          stream,
+          aptSummary: `answered ${aptCorrect} questions`,
+          intSummary: `average interest rating of ${intAvg.toFixed(1)}/4`,
+          perSummary: `personality aligned with ${stream}`,
         },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          max_tokens: 300,
-          messages: [{ role: 'user', content: prompt }],
-        }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        const narrative = data.content?.[0]?.text || ''
-        if (narrative) {
-          await supabase.from('results').update({ ai_narrative: narrative }).eq('id', resultId)
-          setResult(prev => prev ? { ...prev, ai_narrative: narrative } : prev)
-        }
+      if (!error && data?.narrative) {
+        await supabase.from('results').update({ ai_narrative: data.narrative }).eq('id', resultId)
+        setResult(prev => prev ? { ...prev, ai_narrative: data.narrative } : prev)
       }
-    } catch (err) {
-      console.error('AI narrative generation failed:', err)
+    } catch {
+      // narrative generation is non-critical — silently skip on failure
     } finally {
       setGeneratingNarrative(false)
     }
