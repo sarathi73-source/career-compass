@@ -147,7 +147,7 @@ const EXAM_ROADMAP: Record<'Science' | 'Commerce' | 'Humanities', ExamEntry[]> =
       name: 'TISS BAT',
       fullName: 'TISS Bachelor\'s Admission Test',
       emoji: '🤝',
-      description: 'Entry to TISS BA programmes in Social Work and Development Studies. Socially meaningful careers.',
+      description: 'Entry to TISS BA programmes in Social Work and Development Studies. Note: BAT admissions are currently paused — check tiss.edu for the latest updates before applying.',
       startPrep: 'Class 12',
       level: 'Institute',
       difficulty: 'Moderate',
@@ -465,15 +465,11 @@ export default function Results() {
     }
   }
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!result?.share_token) return
     const shareUrl = `${window.location.origin}/share/${result.share_token}`
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      showToast('Share link copied to clipboard! 📋', 'success')
-    } catch {
-      showToast(`Share link: ${shareUrl}`, 'info')
-    }
+    const message = `Hi! I've completed my Career Compass assessment. View my stream recommendation report here: ${shareUrl}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
   if (loading) {
@@ -863,15 +859,16 @@ export default function Results() {
 
           <button
             onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 bg-white text-blue-600 border-2 border-blue-200 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-colors min-h-[52px]"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 bg-green-500 text-white border-2 border-green-500 rounded-xl font-semibold text-sm hover:bg-green-600 hover:border-green-600 transition-colors min-h-[52px]"
+            aria-label="Share report with parent via WhatsApp"
           >
             <Share2 size={20} />
-            Share with Parent
+            Share via WhatsApp
           </button>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Share the link with your parents so they can view your full report without signing in.
+          Opens WhatsApp with a link your parents can tap to view your full report — no sign-in needed.
         </p>
 
         {/* ─── Retake Section ────────────────────────────────────────────────── */}
